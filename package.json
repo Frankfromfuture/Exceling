@@ -1,9 +1,10 @@
 {
-  "name": "lpf",
+  "name": "exceling",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "start": "concurrently -n go,vite -c cyan.bold,green.bold \"go run ./backend\" \"vite\"",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
@@ -27,6 +28,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.5.0",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",

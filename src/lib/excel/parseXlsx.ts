@@ -9,6 +9,41 @@ export interface ParseResult {
   sheetName: string
 }
 
+// ── Go backend (excelize) ─────────────────────────────────────────────────────
+
+/**
+ * Call the Go/excelize backend at /api/parse.
+ * Returns null if the backend is unavailable or returns an error.
+ */
+async function tryBackendParse(file: File): Promise<ParseResult | null> {
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await fetch('/api/parse', { method: 'POST', body: form })
+    if (!res.ok) {
+      console.warn('[exceling] backend returned', res.status, await res.text())
+      return null
+    }
+    const data = await res.json() as { sheetName: string; cells: ParsedCell[] }
+    if (!data.cells?.length) return null
+
+    // Build a dummy region from the cells for compatibility
+    const cols = data.cells.map(c => c.col)
+    const rows = data.cells.map(c => c.row)
+    const region: FrameRegion = {
+      minCol: Math.min(...cols),
+      maxCol: Math.max(...cols),
+      minRow: Math.min(...rows),
+      maxRow: Math.max(...rows),
+    }
+    console.info(`[exceling] backend parsed ${data.cells.length} cells from "${data.sheetName}"`)
+    return { cells: data.cells, region, sheetName: data.sheetName }
+  } catch {
+    console.warn('[exceling] backend unavailable, falling back to SheetJS')
+    return null
+  }
+}
+
 function decodeSheetRange(ref: string | undefined): FrameRegion | null {
   if (!ref) return null
   const decoded = XLSX.utils.decode_range(ref)
@@ -49,10 +84,17 @@ export function parseRangeString(range: string): FrameRegion | null {
 
 /**
  * Read an xlsx/xls File and extract cell data.
- * If manualRange is provided (e.g. "B2:D14"), it is used directly instead of
- * purple-frame detection. Purple-fill marked cells are always detected.
+ * Tries the Go/excelize backend first (better purple detection + CalcCellValue).
+ * Falls back to SheetJS if the backend is unavailable.
+ * If manualRange is provided (e.g. "B2:D14"), skips the backend and uses SheetJS directly.
  */
 export async function parseExcelFile(file: File, manualRange?: string): Promise<ParseResult> {
+  // Backend path: only when no manual range is specified
+  if (!manualRange?.trim()) {
+    const backendResult = await tryBackendParse(file)
+    if (backendResult) return backendResult
+  }
+
   const buffer = await file.arrayBuffer()
 
   const workbook = XLSX.read(buffer, {

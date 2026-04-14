@@ -53,13 +53,13 @@ export function FileUpload() {
         <div className="text-center">
           <div className="flex items-center justify-center gap-2.5 mb-2">
             <div className="w-9 h-9 rounded-lg bg-lpf-card border border-lpf-border flex items-center justify-center">
-              <span className="text-lpf-text font-bold text-sm font-mono">LP</span>
+              <span className="text-lpf-text font-bold text-sm font-mono">EX</span>
             </div>
             <h1 className="text-2xl font-bold text-lpf-text tracking-tight font-mono">
-              小紫框 <span className="text-lpf-muted text-base font-normal">LPF</span>
+              exceling
             </h1>
           </div>
-          <p className="text-lpf-subtle text-sm">上传 Excel 文件，自动可视化计算关系</p>
+          <p className="text-lpf-subtle text-sm">从杂乱表格中找出计算主脉络，可视化呈现</p>
         </div>
 
         {/* Drop zone */}
@@ -151,10 +151,10 @@ export function FileUpload() {
         {/* Tips */}
         <div className="w-full bg-lpf-surface border border-lpf-border rounded-xl p-4 text-xs text-lpf-subtle space-y-1.5">
           <p className="text-lpf-muted font-medium mb-2">使用说明</p>
-          <p>① 可直接上传 Excel，默认分析第一工作表全部已用单元格</p>
-          <p>② 如需限定范围，可手动填写（如 B2:C14）</p>
-          <p>③ 紫色填充单元格标记为 <span className="text-amber-400">起点</span> / <span className="text-emerald-400">终点</span></p>
-          <p>④ 区域内含 <code className="bg-lpf-card px-1 rounded font-mono">=</code> 公式的单元格（加减乘除）即可可视化</p>
+          <p>① 在 Excel 中将<strong className="text-lpf-muted">起始数据</strong>和<strong className="text-lpf-muted">最终结果</strong>单元格设为紫色填充</p>
+          <p>② 上传文件，自动扫描全表公式依赖，推断 <span className="text-amber-400">起点</span> / <span className="text-emerald-400">终点</span>，高亮主脉络</p>
+          <p>③ 非主脉络节点半透明降权，说明框同步输出自然语言描述</p>
+          <p>④ 如需限定分析范围，可手动填写区域（如 B2:C14）</p>
         </div>
       </div>
     </div>

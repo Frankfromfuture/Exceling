@@ -246,6 +246,13 @@ function buildExpressionInfo(
   return { text: '未知项', isRateLike: false }
 }
 
+/** Extract leading function name from a formula string, e.g. "=IF(..." → "IF" */
+function getFormulaFuncName(formula: string | null): string | null {
+  if (!formula) return null
+  const m = formula.match(/^=\s*([A-Z]+)\s*\(/i)
+  return m ? m[1].toUpperCase() : null
+}
+
 function buildNarrationLine(
   node: FlowNode,
   nodes: FlowNode[],
@@ -267,6 +274,19 @@ function buildNarrationLine(
 
   const incoming = edges.filter(edge => edge.target === node.id)
   if (incoming.length === 0) return `${label}为${value}。`
+
+  // Complex formula (IF / VLOOKUP / MAX / etc.) — show function name + dep list
+  if (node.data.isComplex) {
+    const funcName = getFormulaFuncName(node.data.formula as string | null)
+    const depLabels = incoming
+      .map(e => {
+        const src = nodes.find(n => n.id === e.source)
+        return src ? getNodeLabel(src) : e.source
+      })
+      .join('、')
+    const prefix = funcName ? `经 ${funcName} 函数` : '经公式'
+    return `${prefix}（依据 ${depLabels}），${label}为${value}。`
+  }
 
   const expression = buildExpressionInfo(incoming[0].source, nodes, edges, displaySettings)
   return `${expression.text}后，${label}为${value}。`

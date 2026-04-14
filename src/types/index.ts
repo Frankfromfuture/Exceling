@@ -45,6 +45,11 @@ export interface ParsedCell {
   isMarked: boolean
   /** Cell is Excel-formatted as percentage (rawValue ends with %) */
   isPercent: boolean
+  /**
+   * Cell addresses this formula depends on — provided by Go backend.
+   * Covers IF/VLOOKUP/MAX/etc. that the JS tokenizer cannot fully parse.
+   */
+  deps?: string[]
 }
 
 // ── Display settings ────────────────────────────
@@ -63,10 +68,11 @@ export interface CellNodeData extends Record<string, unknown> {
   value: number | string | null
   formula: string | null
   label: string | null
-  isInput: boolean    // no formula → "起点"
-  isOutput: boolean   // has formula + terminal → "终点"
-  isMarked: boolean   // purple fill — user explicitly marked start/end
-  isPercent: boolean  // Excel-formatted as %
+  isInput: boolean      // no formula → "起点"
+  isOutput: boolean     // has formula + terminal → "终点"
+  isMarked: boolean     // purple fill — user explicitly marked start/end
+  isPercent: boolean    // Excel-formatted as %
+  isComplex?: boolean   // formula uses unsupported functions (IF/VLOOKUP/etc.) — deps-based edges
 }
 
 export interface OperatorNodeData extends Record<string, unknown> {

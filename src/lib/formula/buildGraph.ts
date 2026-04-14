@@ -358,6 +358,18 @@ function walkTree(
   return { extraNodes: [], extraEdges: [], outputId: resultCellId, operator: currentOp, literalOperand: null }
 }
 
+// ── Complex formula detection ────────────────────────────────────────────────
+
+/**
+ * Functions that the arithmetic tokenizer cannot parse.
+ * Cells using these will be rendered with direct dep→cell edges (no operator nodes).
+ */
+const COMPLEX_FN_RE = /\b(IF|IFS|VLOOKUP|HLOOKUP|INDEX|MATCH|CHOOSE|SWITCH|INDIRECT|OFFSET|SUMIF|SUMIFS|COUNTIF|COUNTIFS|AVERAGEIF|AVERAGEIFS|MAX|MIN|LARGE|SMALL|AND|OR|NOT|IFERROR|ISERROR|ISBLANK|ISNUMBER|ISTEXT|COUNTA|COUNT|AVERAGE|ROUND|ROUNDUP|ROUNDDOWN|INT|ABS|MOD|LEFT|RIGHT|MID|LEN|TRIM|SUBSTITUTE|REPLACE|CONCATENATE|CONCAT|TEXTJOIN|TEXT|FIND|SEARCH|DATE|TODAY|NOW|YEAR|MONTH|DAY|EDATE|EOMONTH|NETWORKDAYS|WORKDAY|RANK|PERCENTILE|STDEV|VAR|CORREL|PMT|PV|FV|RATE|NPV|IRR)\b/i
+
+function isComplexFormula(formula: string): boolean {
+  return COMPLEX_FN_RE.test(formula)
+}
+
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function buildFlowGraph(cells: ParsedCell[]): {
@@ -424,6 +436,28 @@ export function buildFlowGraph(cells: ParsedCell[]): {
     }
   }
 
+  // ── Complex formula cells (IF / VLOOKUP / MAX / etc.) ────────────────────
+  // These can't be parsed into operator trees. Use the deps array (from Go backend)
+  // to create direct cell→cell edges. Mark the node as isComplex for the narration.
+  const complexFormulaCells = cellsWithFormula.filter(
+    c => isComplexFormula(c.formula!) && c.deps?.length
+  )
+  const complexCellIds = new Set(complexFormulaCells.map(c => c.address))
+
+  for (const cell of complexFormulaCells) {
+    for (const dep of cell.deps!) {
+      if (availableAddresses.has(dep) && dep !== cell.address) {
+        allEdges.push({
+          id: uid('e'),
+          source: dep,
+          target: cell.address,
+          type: 'animatedEdge',
+          data: { operator: '+' },
+        })
+      }
+    }
+  }
+
   const hasIncoming = new Set(allEdges.map(e => e.target))
   const hasOutgoing = new Set(allEdges.map(e => e.source))
   const formulaCellIds = new Set(graphFormulaCells.map(c => c.address))
@@ -444,7 +478,8 @@ export function buildFlowGraph(cells: ParsedCell[]): {
     const isMarkedEnd = n.id === markedEndAddress && markedEndAddress !== markedStartAddress
 
     let isInput = !cell?.formula || externalFormulaAddresses.has(n.id)
-    let isOutput = formulaCellIds.has(n.id) && !hasOutgoing.has(n.id)
+    let isOutput = (formulaCellIds.has(n.id) || complexCellIds.has(n.id)) && !hasOutgoing.has(n.id)
+    const isComplex = complexCellIds.has(n.id)
 
     if (markedCells.length > 0) {
       if (isMarkedStart) isInput = true
@@ -454,7 +489,7 @@ export function buildFlowGraph(cells: ParsedCell[]): {
       }
     }
 
-    return { ...n, data: { ...n.data, isInput, isOutput } }
+    return { ...n, data: { ...n.data, isInput, isOutput, isComplex } }
   })
 
   return {
