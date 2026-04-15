@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { FlowNode, FlowEdge, AnimationStatus, AnimationStep, DisplaySettings } from '../types'
-import { applyDagreLayout } from '../lib/layout/autoLayout'
+import { applyDagreLayout, centerMainPath } from '../lib/layout/autoLayout'
 
 interface MainPathResult {
   mainPathNodeIds: Set<string>
@@ -182,9 +182,14 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
     const { startCellInput, endCellInput } = get()
     const { mainPathNodeIds, mainPathEdgeIds } = findMainPath(nodes, edges, startCellInput, endCellInput)
     const hasMainPath = mainPathNodeIds.size > 0 && mainPathEdgeIds.size > 0
+
+    // Shift main-path nodes to the canvas vertical centre so the
+    // primary calculation chain runs in a straight horizontal band.
+    const alignedNodes = hasMainPath ? centerMainPath(nodes, mainPathNodeIds) : nodes
+
     const animationNodes = hasMainPath
-      ? nodes.filter(node => mainPathNodeIds.has(node.id))
-      : nodes
+      ? alignedNodes.filter(node => mainPathNodeIds.has(node.id))
+      : alignedNodes
     const animationEdges = hasMainPath
       ? edges.filter(edge => mainPathEdgeIds.has(edge.id))
       : edges
@@ -192,7 +197,7 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
 
     set({
       fileName,
-      nodes,
+      nodes: alignedNodes,
       edges,
       hasMainPath,
       mainPathNodeIds,
@@ -226,10 +231,11 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
     }),
 
   relayoutFlow: () => {
-    const { nodes, edges } = get()
+    const { nodes, edges, mainPathNodeIds, hasMainPath } = get()
     if (nodes.length === 0) return
     const laid = applyDagreLayout(nodes, edges)
-    set({ nodes: laid })
+    const aligned = hasMainPath ? centerMainPath(laid, mainPathNodeIds) : laid
+    set({ nodes: aligned })
   },
 
   playAnimation: () => {
