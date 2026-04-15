@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   ReactFlow,
   Background,
@@ -7,6 +7,7 @@ import {
   MiniMap,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   type NodeTypes,
   type EdgeTypes,
 } from '@xyflow/react'
@@ -292,6 +293,43 @@ function buildNarrationLine(
   return `${expression.text}后，${label}为${value}。`
 }
 
+/**
+ * Programmatically fits the viewport to main-path nodes whenever the graph
+ * or main path changes. Must be rendered inside the ReactFlow provider.
+ */
+function FlowAutoFit() {
+  const { fitView } = useReactFlow()
+  const hasMainPath  = useFlowStore(s => s.hasMainPath)
+  const mainPathNodeIds = useFlowStore(s => s.mainPathNodeIds)
+  const storeNodes   = useFlowStore(s => s.nodes)
+  const timerRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (storeNodes.length === 0) return
+
+    // Cancel any pending fit so rapid updates don't stack
+    if (timerRef.current) clearTimeout(timerRef.current)
+
+    timerRef.current = setTimeout(() => {
+      if (hasMainPath && mainPathNodeIds.size > 0) {
+        // Fit to main-path nodes only — fills the screen with the highlighted subgraph
+        fitView({
+          padding: 0.10,
+          nodes: [...mainPathNodeIds].map(id => ({ id })),
+          maxZoom: 1.4,
+          duration: 550,
+        })
+      } else {
+        fitView({ padding: 0.12, maxZoom: 1.2, duration: 550 })
+      }
+    }, 80) // wait for React Flow to finish measuring node dimensions
+
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [storeNodes, hasMainPath, mainPathNodeIds, fitView])
+
+  return null
+}
+
 function PlaybackNarration() {
   const { animationStatus, animationStep, animationSteps, nodes, edges, displaySettings, mainPathNodeIds } = useFlowStore()
 
@@ -356,9 +394,7 @@ export function FlowCanvas() {
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.15, maxZoom: 1.2 }}
-        minZoom={0.1}
+        minZoom={0.05}
         maxZoom={3}
         proOptions={{ hideAttribution: false }}
         nodesDraggable
@@ -367,6 +403,7 @@ export function FlowCanvas() {
         snapToGrid
         snapGrid={[28, 28]}
       >
+        <FlowAutoFit />
         <Background
           id="grid-lines"
           variant={BackgroundVariant.Lines}
