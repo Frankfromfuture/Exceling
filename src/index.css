@@ -95,3 +95,30 @@ html, body, #root {
 .animate-edge-active {
   animation: edge-active-glow 1s ease-in-out infinite;
 }
+
+/* ── Main path glow — card border pulse ────────── */
+/* Start node: amber */
+@keyframes glow-amber-card {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(245,158,11,0.32), 0 0 18px rgba(245,158,11,0.14); }
+  50%       { box-shadow: 0 0 0 3px rgba(245,158,11,0.62), 0 0 36px rgba(245,158,11,0.26); }
+}
+/* End node: emerald */
+@keyframes glow-emerald-card {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(16,185,129,0.32), 0 0 18px rgba(16,185,129,0.14); }
+  50%       { box-shadow: 0 0 0 3px rgba(16,185,129,0.62), 0 0 36px rgba(16,185,129,0.26); }
+}
+/* Mid-path node: indigo */
+@keyframes glow-indigo-card {
+  0%, 100% { box-shadow: 0 0 0 1.5px rgba(99,102,241,0.28), 0 0 14px rgba(99,102,241,0.10); }
+  50%       { box-shadow: 0 0 0 2.5px rgba(99,102,241,0.55), 0 0 28px rgba(99,102,241,0.20); }
+}
+.main-path-glow-start   { animation: glow-amber-card   2s ease-in-out infinite; }
+.main-path-glow-end     { animation: glow-emerald-card 2s ease-in-out infinite; }
+.main-path-glow-mid     { animation: glow-indigo-card  2.5s ease-in-out infinite; }
+
+/* ── Operator node: expanding pulse ring ───────── */
+@keyframes op-ring-expand {
+  0%   { transform: scale(1);   opacity: 0.65; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+.op-ring-pulse { animation: op-ring-expand 1.8s ease-out infinite; }

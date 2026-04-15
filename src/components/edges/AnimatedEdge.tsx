@@ -16,9 +16,11 @@ export const AnimatedEdge = memo(function AnimatedEdge({
   data,
 }: EdgeProps<Edge<FlowEdgeData>>) {
   const activeEdgeIds = useFlowStore(s => s.activeEdgeIds)
+  const hasMainPath = useFlowStore(s => s.hasMainPath)
   const mainPathEdgeIds = useFlowStore(s => s.mainPathEdgeIds)
   const isActive = activeEdgeIds.has(id)
-  const isOnMainPath = mainPathEdgeIds.size === 0 || mainPathEdgeIds.has(id)
+  const isOnMainPath = !hasMainPath || mainPathEdgeIds.has(id)
+  const isMainPath = hasMainPath && isOnMainPath   // true only when a path exists AND this edge is on it
   const operator = data?.operator ?? '+'
   const color = OPERATOR_COLORS[operator] ?? '#8b5cf6'
 
@@ -28,51 +30,88 @@ export const AnimatedEdge = memo(function AnimatedEdge({
     curvature: 0.3,
   })
 
+  // Sizing tiers
+  const baseW  = isActive ? 4   : isMainPath ? 5   : 2.5
+  const dashW  = isActive ? 6   : isMainPath ? 8   : 3
+  const dashGap = isMainPath ? '14 5' : '10 6'
+  const flowSpeed = isMainPath ? '0.45s' : '1.2s'
+  const baseOpacity  = isMainPath ? 0.28 : (isOnMainPath ? 0.18 : 0.05)
+  const dashOpacity  = isActive ? 0.95 : isMainPath ? 0.88 : (isOnMainPath ? 0.55 : 0.14)
+  const arrowOpacity = isActive ? 0.92 : isMainPath ? 0.82 : (isOnMainPath ? 0.52 : 0.14)
+  const arrowSize    = isMainPath ? 7 : 5
+
   return (
     <>
-      {/* Base path (dim) */}
+      {/* ── Glow halo — main path only ── */}
+      {isMainPath && (
+        <path
+          d={edgePath}
+          stroke={color}
+          strokeWidth={20}
+          strokeLinecap="round"
+          fill="none"
+          strokeOpacity={0.07}
+        />
+      )}
+
+      {/* ── Base path ── */}
       <path
         d={edgePath}
         stroke={color}
-        strokeWidth={isActive ? 3.5 : 3}
+        strokeWidth={baseW}
+        strokeLinecap="round"
         fill="none"
-        strokeOpacity={isOnMainPath ? 0.2 : 0.1}
+        strokeOpacity={baseOpacity}
+        style={{ transition: 'stroke-width 0.4s, stroke-opacity 0.4s' }}
       />
 
-      {/* Animated flowing dashes */}
+      {/* ── Animated flowing dashes ── */}
       <path
         d={edgePath}
         stroke={color}
-        strokeWidth={isActive ? 4.5 : 3.5}
+        strokeWidth={dashW}
         fill="none"
-        strokeOpacity={isActive ? 0.95 : isOnMainPath ? 0.62 : 0.31}
-        strokeDasharray="10 6"
+        strokeOpacity={dashOpacity}
+        strokeDasharray={dashGap}
+        strokeLinecap="round"
         style={{
-          animation: 'flow 1.2s linear infinite',
-          filter: isActive ? `drop-shadow(0 0 4px ${color})` : 'none',
+          animation: `flow ${flowSpeed} linear infinite`,
+          filter: isActive
+            ? `drop-shadow(0 0 5px ${color})`
+            : isMainPath
+              ? `drop-shadow(0 0 3px ${color}bb)`
+              : 'none',
           transition: 'stroke-opacity 0.4s, stroke-width 0.4s',
         }}
       />
 
-      {/* Arrow head */}
+      {/* ── Arrow head ── */}
       <defs>
         <marker
           id={`arrow-${id}`}
           viewBox="0 0 10 10"
           refX="4.5"
           refY="5"
-          markerWidth="5"
-          markerHeight="5"
+          markerWidth={arrowSize}
+          markerHeight={arrowSize}
           orient="auto-start-reverse"
         >
-          <path d="M 1 2 L 7 5 L 1 8" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" opacity={isActive ? 0.9 : isOnMainPath ? 0.58 : 0.29} />
+          <path
+            d="M 1 2 L 7 5 L 1 8"
+            fill="none"
+            stroke={color}
+            strokeWidth={isMainPath ? 1.8 : 1.2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={arrowOpacity}
+          />
         </marker>
       </defs>
       <path
         d={edgePath}
         fill="none"
         stroke="transparent"
-        strokeWidth={4}
+        strokeWidth={isMainPath ? 6 : 4}
         markerEnd={`url(#arrow-${id})`}
       />
     </>

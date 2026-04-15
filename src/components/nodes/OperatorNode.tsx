@@ -21,9 +21,12 @@ function formatLiteralValue(value: number | string, isPercent: boolean) {
 export const OperatorNode = memo(function OperatorNode({ id, data }: NodeProps<OperatorFlowNode>) {
   const { operator, literalOperands } = data as OperatorNodeData
   const activeNodeIds = useFlowStore(s => s.activeNodeIds)
+  const hasMainPath = useFlowStore(s => s.hasMainPath)
   const mainPathNodeIds = useFlowStore(s => s.mainPathNodeIds)
   const isActive = activeNodeIds.has(id)
-  const isOnMainPath = mainPathNodeIds.size === 0 || mainPathNodeIds.has(id)
+  const isOnMainPath = !hasMainPath || mainPathNodeIds.has(id)
+  const nodeOpacity = isOnMainPath ? 1 : 0.32
+  const showMainGlow = hasMainPath && isOnMainPath && !isActive
 
   const color = OPERATOR_COLORS[operator]
   const label = OPERATOR_LABELS[operator]
@@ -31,7 +34,7 @@ export const OperatorNode = memo(function OperatorNode({ id, data }: NodeProps<O
   const rightLiteral = literalOperands.find(item => item.side === 'right')
 
   return (
-    <div className="relative flex items-center gap-2">
+    <div className="relative flex items-center gap-2" style={{ opacity: nodeOpacity }}>
       {leftLiteral && (
         <span className="text-[11px] text-lpf-muted whitespace-nowrap min-w-[44px] text-right">
           {formatLiteralValue(leftLiteral.value, leftLiteral.isPercent)}
@@ -43,19 +46,21 @@ export const OperatorNode = memo(function OperatorNode({ id, data }: NodeProps<O
           'relative flex items-center justify-center rounded-full',
           'transition-all duration-500 cursor-default select-none',
           'border-2',
-          isActive ? 'scale-110' : 'hover:scale-105',
+          isActive ? 'scale-110' : showMainGlow ? 'scale-105' : 'hover:scale-105',
         ].join(' ')}
         style={{
-          width: 42,
-          height: 42,
-          opacity: isOnMainPath ? 1 : 0.5,
+          width: showMainGlow ? 46 : 42,
+          height: showMainGlow ? 46 : 42,
           borderColor: color,
+          borderWidth: showMainGlow ? 2.5 : 2,
           background: isActive
             ? '#e8e8e8'
-            : `radial-gradient(circle at 30% 30%, ${color}22, rgba(39,39,42,0.96) 58%)`,
+            : `radial-gradient(circle at 30% 30%, ${color}30, ${color}08 58%)`,
           boxShadow: isActive
-            ? `0 0 0 2px ${color}18, 0 8px 18px rgba(0,0,0,0.08)`
-            : `0 0 0 1px ${color}18, 0 6px 14px rgba(0,0,0,0.14)`,
+            ? `0 0 0 2px ${color}30, 0 8px 18px rgba(0,0,0,0.08)`
+            : showMainGlow
+              ? `0 0 0 2px ${color}40, 0 0 18px ${color}30, 0 6px 16px rgba(0,0,0,0.10)`
+              : `0 0 0 1px ${color}18, 0 6px 14px rgba(0,0,0,0.14)`,
         }}
       >
         <Handle
@@ -66,11 +71,23 @@ export const OperatorNode = memo(function OperatorNode({ id, data }: NodeProps<O
 
         <span
           className="text-lg font-bold select-none transition-all duration-300"
-          style={{ color: '#ffffff', textShadow: isActive ? 'none' : `0 0 8px ${color}55` }}
+          style={{
+            color: isActive ? '#1a1a1a' : color,
+            textShadow: isActive ? 'none' : showMainGlow ? `0 0 12px ${color}99` : `0 0 8px ${color}55`,
+          }}
         >
           {label}
         </span>
 
+        {/* Main path expanding pulse ring */}
+        {showMainGlow && (
+          <div
+            className="op-ring-pulse absolute inset-0 rounded-full pointer-events-none"
+            style={{ border: `2px solid ${color}` }}
+          />
+        )}
+
+        {/* Active ping */}
         {isActive && (
           <div
             className="absolute inset-0 rounded-full animate-ping opacity-30"

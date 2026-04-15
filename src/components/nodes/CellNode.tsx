@@ -32,14 +32,19 @@ function formatValue(
 export const CellNode = memo(function CellNode({ id, data }: NodeProps<CellFlowNode>) {
   const { address, value, label, isInput, isOutput, isMarked, isPercent } = data as CellNodeData
   const activeNodeIds = useFlowStore(s => s.activeNodeIds)
+  const hasMainPath = useFlowStore(s => s.hasMainPath)
   const mainPathNodeIds = useFlowStore(s => s.mainPathNodeIds)
   const { numberDecimals, percentMode, percentDecimals } = useFlowStore(s => s.displaySettings)
   const isActive = activeNodeIds.has(id)
-  const isOnMainPath = mainPathNodeIds.size === 0 || mainPathNodeIds.has(id)
+  const isOnMainPath = !hasMainPath || mainPathNodeIds.has(id)
+  const nodeOpacity = isOnMainPath ? 1 : 0.32
 
   // ── Card state variants ────────────────────────────────────────────────────
   const isStart  = isMarked && !isOutput
   const isEnd    = isMarked && isOutput
+
+  // Whether this node should receive the main-path glow animation
+  const showMainGlow = hasMainPath && isOnMainPath && !isActive
 
   let borderCls: string, topBarCls: string, valueCls: string, glowCls: string, cardBgCls: string, titleCls: string, dividerCls: string, ringCls: string
   if (isActive) {
@@ -52,23 +57,32 @@ export const CellNode = memo(function CellNode({ id, data }: NodeProps<CellFlowN
     dividerCls = 'bg-black/6'
     ringCls    = 'ring-black/8'
   } else if (isEnd) {
-    borderCls  = 'border-emerald-500/60'
+    borderCls  = showMainGlow ? 'border-emerald-400/90' : 'border-emerald-500/60'
     topBarCls  = 'bg-emerald-500'
-    valueCls   = 'text-emerald-300'
-    glowCls    = 'shadow-[0_0_14px_rgba(16,185,129,0.18)]'
+    valueCls   = 'text-emerald-600'
+    glowCls    = showMainGlow ? 'main-path-glow-end' : 'shadow-[0_0_14px_rgba(16,185,129,0.18)]'
     cardBgCls  = 'bg-lpf-card'
     titleCls   = 'text-lpf-text'
-    dividerCls = 'bg-white/5'
-    ringCls    = 'ring-white/20'
+    dividerCls = 'bg-black/6'
+    ringCls    = 'ring-emerald-200/60'
   } else if (isStart) {
-    borderCls  = 'border-amber-500/60'
+    borderCls  = showMainGlow ? 'border-amber-400/90' : 'border-amber-500/60'
     topBarCls  = 'bg-amber-500'
-    valueCls   = 'text-amber-300'
-    glowCls    = 'shadow-[0_0_14px_rgba(245,158,11,0.18)]'
+    valueCls   = 'text-amber-600'
+    glowCls    = showMainGlow ? 'main-path-glow-start' : 'shadow-[0_0_14px_rgba(245,158,11,0.18)]'
     cardBgCls  = 'bg-lpf-card'
     titleCls   = 'text-lpf-text'
-    dividerCls = 'bg-white/5'
-    ringCls    = 'ring-white/20'
+    dividerCls = 'bg-black/6'
+    ringCls    = 'ring-amber-200/60'
+  } else if (showMainGlow) {
+    borderCls  = 'border-indigo-300/70'
+    topBarCls  = isPercent ? 'bg-sky-500/80' : 'bg-indigo-400/70'
+    valueCls   = 'text-lpf-text'
+    glowCls    = 'main-path-glow-mid'
+    cardBgCls  = 'bg-lpf-card'
+    titleCls   = 'text-lpf-text'
+    dividerCls = 'bg-black/5'
+    ringCls    = 'ring-indigo-200/50'
   } else {
     borderCls  = 'border-lpf-border hover:border-lpf-border-light'
     topBarCls  = isPercent ? 'bg-sky-700/70' : 'bg-lpf-subtle'
@@ -101,7 +115,7 @@ export const CellNode = memo(function CellNode({ id, data }: NodeProps<CellFlowN
         borderCls,
         glowCls,
       ].join(' ')}
-      style={{ opacity: isOnMainPath ? 1 : 0.5 }}
+      style={{ opacity: nodeOpacity }}
     >
       {/* Input handle */}
       {!isInput && (
@@ -109,8 +123,8 @@ export const CellNode = memo(function CellNode({ id, data }: NodeProps<CellFlowN
           className="!border-lpf-subtle !bg-lpf-bg !w-2.5 !h-2.5" />
       )}
 
-      {/* Accent top bar */}
-      <div className={`h-[2px] w-full ${topBarCls} transition-colors duration-300`} />
+      {/* Accent top bar — thicker on main path */}
+      <div className={`${showMainGlow ? 'h-[3px]' : 'h-[2px]'} w-full ${topBarCls} transition-all duration-300`} />
 
       {/* Body */}
       <div className="px-3.5 pt-2.5 pb-3">
@@ -148,6 +162,11 @@ export const CellNode = memo(function CellNode({ id, data }: NodeProps<CellFlowN
           <div className="mt-1.5 text-[9px] text-sky-600/70 uppercase tracking-wider font-medium">参数</div>
         )}
       </div>
+
+      {/* Main path steady ring (non-active) */}
+      {showMainGlow && (
+        <div className={`absolute inset-0 rounded-xl ring-1 ${ringCls} pointer-events-none`} />
+      )}
 
       {/* Active ring */}
       {isActive && (
