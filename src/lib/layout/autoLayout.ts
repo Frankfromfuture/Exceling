@@ -3,13 +3,14 @@ import type { FlowNode, FlowEdge } from '../../types'
 
 const CELL_W     = 200
 const CELL_H     = 90
-const OP_SIZE    = 42
+const OP_W       = 72   // operator node — rounded rect, wider than tall
+const OP_H       = 56
 const CONST_SIZE = 56
 
 interface NodeDims { width: number; height: number }
 
 function getNodeDims(type: string | undefined): NodeDims {
-  if (type === 'operatorNode') return { width: OP_SIZE, height: OP_SIZE }
+  if (type === 'operatorNode') return { width: OP_W, height: OP_H }
   if (type === 'constantNode')  return { width: CONST_SIZE, height: CONST_SIZE }
   return { width: CELL_W, height: CELL_H }
 }
