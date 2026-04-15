@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useState, useMemo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import type { CellFlowNode, CellNodeData } from '../../types'
 import { useFlowStore } from '../../store/flowStore'
@@ -14,7 +14,6 @@ function formatValue(
   if (typeof v === 'string') return v
   if (typeof v === 'number') {
     if (isPercent && pctMode) {
-      // Multiply by 100 and show as %
       return (v * 100).toLocaleString('zh-CN', {
         minimumFractionDigits: pctDec,
         maximumFractionDigits: pctDec,
@@ -29,24 +28,57 @@ function formatValue(
   return String(v)
 }
 
+/** Replace cell references in a formula with human labels where available. */
+function prettifyFormula(formula: string, labelMap: Map<string, string>): string {
+  // Replace $A$1, A$1, $A1, A1 style refs — longest addresses first to avoid partial hits
+  const cellRefRe = /\$?[A-Z]{1,3}\$?[0-9]{1,7}/gi
+  return formula.replace(cellRefRe, match => {
+    const normalized = match.replace(/\$/g, '').toUpperCase()
+    const label = labelMap.get(normalized)
+    // Only substitute if label looks like a meaningful name, not just another address
+    return (label && !/^[A-Z]{1,3}\d+$/i.test(label)) ? label : match
+  })
+}
+
 export const CellNode = memo(function CellNode({ id, data }: NodeProps<CellFlowNode>) {
-  const { address, value, label, isInput, isOutput, isMarked, isPercent } = data as CellNodeData
+  const { address, value, label, formula, isInput, isOutput, isMarked, isPercent } = data as CellNodeData
   const activeNodeIds    = useFlowStore(s => s.activeNodeIds)
   const hasMainPath      = useFlowStore(s => s.hasMainPath)
   const mainPathNodeIds  = useFlowStore(s => s.mainPathNodeIds)
   const animationStatus  = useFlowStore(s => s.animationStatus)
+  const allNodes         = useFlowStore(s => s.nodes)
   const { numberDecimals, percentMode, percentDecimals } = useFlowStore(s => s.displaySettings)
+
   const isActive = activeNodeIds.has(id)
   const isOnMainPath = !hasMainPath || mainPathNodeIds.has(id)
   const isPlaying = animationStatus !== 'idle'
-  // During playback hide non-main-path nodes completely; at rest dim them
   const nodeOpacity = isPlaying && hasMainPath && !isOnMainPath ? 0 : isOnMainPath ? 1 : 0.32
+
+  const [isHovered, setIsHovered] = useState(false)
+
+  // Build address → label map once per graph load
+  const labelMap = useMemo(() => {
+    const map = new Map<string, string>()
+    allNodes.forEach(n => {
+      if (n.type === 'cellNode' && n.data.label?.trim()) {
+        map.set(n.data.address.toUpperCase(), n.data.label.trim())
+      }
+    })
+    return map
+  }, [allNodes])
+
+  // Formula with cell addresses substituted by labels
+  const displayFormula = useMemo(
+    () => formula ? prettifyFormula(formula, labelMap) : null,
+    [formula, labelMap],
+  )
+
+  // Only show tooltip for calc cells (has formula), when not hidden
+  const showTooltip = isHovered && !!displayFormula && nodeOpacity > 0
 
   // ── Card state variants ────────────────────────────────────────────────────
   const isStart  = isMarked && !isOutput
   const isEnd    = isMarked && isOutput
-
-  // Whether this node should receive the main-path glow animation
   const showMainGlow = hasMainPath && isOnMainPath && !isActive
 
   let borderCls: string, topBarCls: string, valueCls: string, glowCls: string, cardBgCls: string, titleCls: string, dividerCls: string, ringCls: string
@@ -109,76 +141,119 @@ export const CellNode = memo(function CellNode({ id, data }: NodeProps<CellFlowN
 
   return (
     <div
-      className={[
-        'relative rounded-xl border overflow-hidden',
-        'min-w-[172px] max-w-[236px]',
-        'transition-all duration-300 cursor-default select-none',
-        'backdrop-blur-sm',
-        cardBgCls,
-        borderCls,
-        glowCls,
-      ].join(' ')}
-      style={{ opacity: nodeOpacity }}
+      className="relative"
+      style={{
+        opacity: nodeOpacity,
+        transition: 'opacity 0.35s ease',
+        pointerEvents: nodeOpacity === 0 ? 'none' : 'auto',
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Input handle */}
-      {!isInput && (
-        <Handle type="target" position={Position.Left}
-          className="!border-lpf-subtle !bg-lpf-bg !w-2.5 !h-2.5" />
+      {/* ── Formula tooltip ───────────────────────────────────────────────── */}
+      {showTooltip && (
+        <div
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50 pointer-events-none"
+          style={{ filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.28))' }}
+        >
+          <div className="relative bg-gray-900 rounded-2xl px-4 py-3 border border-white/10 min-w-[190px] max-w-[310px]">
+            {/* Header */}
+            <p className="text-[10px] text-gray-400 uppercase tracking-[0.18em] mb-2 font-semibold select-none">
+              {address} · 计算公式
+            </p>
+
+            {/* Pretty formula */}
+            <p className="text-[13px] font-mono text-gray-100 leading-relaxed break-all">
+              {displayFormula}
+            </p>
+
+            {/* Raw formula — only if substitution actually changed something */}
+            {displayFormula !== formula && (
+              <p className="text-[11px] font-mono text-gray-500 mt-2 break-all border-t border-white/6 pt-2">
+                {formula}
+              </p>
+            )}
+
+            {/* Down-arrow */}
+            <div
+              className="absolute top-full left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-900 border-r border-b border-white/10 rotate-45 -mt-1.5"
+            />
+          </div>
+        </div>
       )}
 
-      {/* Accent top bar — thicker on main path */}
-      <div className={`${showMainGlow ? 'h-[3px]' : 'h-[2px]'} w-full ${topBarCls} transition-all duration-300`} />
-
-      {/* Body */}
-      <div className="px-3.5 pt-2.5 pb-3">
-
-        {/* Header row */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex-1 min-w-0">
-            {hasLabel
-              ? <p className={`text-[13px] font-semibold leading-tight truncate ${titleCls}`} title={label!}>{label}</p>
-              : <p className="text-[11px] font-mono text-lpf-muted">{address}</p>
-            }
-          </div>
-          <div className="flex flex-col items-end gap-1 shrink-0">
-            {badge && (
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm border uppercase tracking-wider ${badge.cls}`}>
-                {badge.text}
-              </span>
-            )}
-            {hasLabel && (
-              <span className="font-mono text-[10px] text-lpf-subtle">{address}</span>
-            )}
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className={`h-px ${dividerCls} mb-2.5`} />
-
-        {/* Value */}
-        <div className={`text-[22px] font-bold font-mono tracking-tight leading-none transition-colors duration-300 ${valueCls}`}>
-          {displayValue}
-        </div>
-
-        {/* Percent type indicator */}
-        {isPercent && !isMarked && (
-          <div className="mt-1.5 text-[9px] text-sky-600/70 uppercase tracking-wider font-medium">参数</div>
+      {/* ── Card ─────────────────────────────────────────────────────────── */}
+      <div
+        className={[
+          'relative rounded-xl border overflow-hidden',
+          'min-w-[172px] max-w-[236px]',
+          'transition-all duration-300 cursor-default select-none',
+          'backdrop-blur-sm',
+          cardBgCls,
+          borderCls,
+          glowCls,
+        ].join(' ')}
+      >
+        {/* Input handle */}
+        {!isInput && (
+          <Handle type="target" position={Position.Left}
+            className="!border-lpf-subtle !bg-lpf-bg !w-2.5 !h-2.5" />
         )}
+
+        {/* Accent top bar — thicker on main path */}
+        <div className={`${showMainGlow ? 'h-[3px]' : 'h-[2px]'} w-full ${topBarCls} transition-all duration-300`} />
+
+        {/* Body */}
+        <div className="px-3.5 pt-2.5 pb-3">
+
+          {/* Header row */}
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex-1 min-w-0">
+              {hasLabel
+                ? <p className={`text-[13px] font-semibold leading-tight truncate ${titleCls}`} title={label!}>{label}</p>
+                : <p className="text-[11px] font-mono text-lpf-muted">{address}</p>
+              }
+            </div>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              {badge && (
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm border uppercase tracking-wider ${badge.cls}`}>
+                  {badge.text}
+                </span>
+              )}
+              {hasLabel && (
+                <span className="font-mono text-[10px] text-lpf-subtle">{address}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className={`h-px ${dividerCls} mb-2.5`} />
+
+          {/* Value */}
+          <div className={`text-[22px] font-bold font-mono tracking-tight leading-none transition-colors duration-300 ${valueCls}`}>
+            {displayValue}
+          </div>
+
+          {/* Percent type indicator */}
+          {isPercent && !isMarked && (
+            <div className="mt-1.5 text-[9px] text-sky-600/70 uppercase tracking-wider font-medium">参数</div>
+          )}
+        </div>
+
+        {/* Main path steady ring (non-active) */}
+        {showMainGlow && (
+          <div className={`absolute inset-0 rounded-xl ring-1 ${ringCls} pointer-events-none`} />
+        )}
+
+        {/* Active ring */}
+        {isActive && (
+          <div className={`absolute inset-0 rounded-xl ring-1 ${ringCls} pointer-events-none`} />
+        )}
+
+        {/* Output handle */}
+        <Handle type="source" position={Position.Right}
+          className="!border-lpf-subtle !bg-lpf-bg !w-2.5 !h-2.5" />
       </div>
-
-      {/* Main path steady ring (non-active) */}
-      {showMainGlow && (
-        <div className={`absolute inset-0 rounded-xl ring-1 ${ringCls} pointer-events-none`} />
-      )}
-
-      {/* Active ring */}
-      {isActive && (
-        <div className={`absolute inset-0 rounded-xl ring-1 ${ringCls} pointer-events-none`} />
-      )}
-
-      {/* Output handle */}
-      <Handle type="source" position={Position.Right}
-        className="!border-lpf-subtle !bg-lpf-bg !w-2.5 !h-2.5" />
     </div>
   )
 })
