@@ -20,12 +20,14 @@ function formatLiteralValue(value: number | string, isPercent: boolean) {
 
 export const OperatorNode = memo(function OperatorNode({ id, data }: NodeProps<OperatorFlowNode>) {
   const { operator, literalOperands } = data as OperatorNodeData
-  const activeNodeIds = useFlowStore(s => s.activeNodeIds)
-  const hasMainPath = useFlowStore(s => s.hasMainPath)
+  const activeNodeIds   = useFlowStore(s => s.activeNodeIds)
+  const hasMainPath     = useFlowStore(s => s.hasMainPath)
   const mainPathNodeIds = useFlowStore(s => s.mainPathNodeIds)
+  const animationStatus = useFlowStore(s => s.animationStatus)
   const isActive = activeNodeIds.has(id)
   const isOnMainPath = !hasMainPath || mainPathNodeIds.has(id)
-  const nodeOpacity = isOnMainPath ? 1 : 0.32
+  const isPlaying = animationStatus !== 'idle'
+  const nodeOpacity = isPlaying && hasMainPath && !isOnMainPath ? 0 : isOnMainPath ? 1 : 0.32
   const showMainGlow = hasMainPath && isOnMainPath && !isActive
 
   const color = OPERATOR_COLORS[operator]

@@ -15,12 +15,17 @@ export const AnimatedEdge = memo(function AnimatedEdge({
   sourcePosition, targetPosition,
   data,
 }: EdgeProps<Edge<FlowEdgeData>>) {
-  const activeEdgeIds = useFlowStore(s => s.activeEdgeIds)
-  const hasMainPath = useFlowStore(s => s.hasMainPath)
+  const activeEdgeIds   = useFlowStore(s => s.activeEdgeIds)
+  const hasMainPath     = useFlowStore(s => s.hasMainPath)
   const mainPathEdgeIds = useFlowStore(s => s.mainPathEdgeIds)
+  const animationStatus = useFlowStore(s => s.animationStatus)
   const isActive = activeEdgeIds.has(id)
   const isOnMainPath = !hasMainPath || mainPathEdgeIds.has(id)
-  const isMainPath = hasMainPath && isOnMainPath   // true only when a path exists AND this edge is on it
+  const isMainPath = hasMainPath && isOnMainPath
+  const isPlaying  = animationStatus !== 'idle'
+  // During playback, completely hide non-main-path edges
+  const isHidden   = isPlaying && hasMainPath && !isOnMainPath
+
   const operator = data?.operator ?? '+'
   const color = OPERATOR_COLORS[operator] ?? '#8b5cf6'
 
@@ -31,9 +36,9 @@ export const AnimatedEdge = memo(function AnimatedEdge({
   })
 
   // Sizing tiers
-  const baseW  = isActive ? 4   : isMainPath ? 5   : 2.5
-  const dashW  = isActive ? 6   : isMainPath ? 8   : 3
-  const dashGap = isMainPath ? '14 5' : '10 6'
+  const baseW     = isActive ? 4   : isMainPath ? 5   : 2.5
+  const dashW     = isActive ? 6   : isMainPath ? 8   : 3
+  const dashGap   = isMainPath ? '14 5' : '10 6'
   const flowSpeed = isMainPath ? '0.45s' : '1.2s'
   const baseOpacity  = isMainPath ? 0.28 : (isOnMainPath ? 0.18 : 0.05)
   const dashOpacity  = isActive ? 0.95 : isMainPath ? 0.88 : (isOnMainPath ? 0.55 : 0.14)
@@ -41,7 +46,7 @@ export const AnimatedEdge = memo(function AnimatedEdge({
   const arrowSize    = isMainPath ? 7 : 5
 
   return (
-    <>
+    <g style={{ opacity: isHidden ? 0 : 1, transition: 'opacity 0.35s ease' }}>
       {/* ── Glow halo — main path only ── */}
       {isMainPath && (
         <path
@@ -114,6 +119,6 @@ export const AnimatedEdge = memo(function AnimatedEdge({
         strokeWidth={isMainPath ? 6 : 4}
         markerEnd={`url(#arrow-${id})`}
       />
-    </>
+    </g>
   )
 })

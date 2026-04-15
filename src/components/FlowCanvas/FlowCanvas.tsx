@@ -19,7 +19,7 @@ import { OperatorNode } from '../nodes/OperatorNode'
 import { AnimatedEdge } from '../edges/AnimatedEdge'
 import { AnimationBar } from '../AnimationBar/AnimationBar'
 import { useFlowStore } from '../../store/flowStore'
-import type { FlowNode } from '../../types'
+import type { FlowNode, FlowEdge } from '../../types'
 
 const nodeTypes: NodeTypes = {
   cellNode:     CellNode as any,
@@ -139,114 +139,6 @@ function getNodeLabel(node: FlowNode | undefined) {
   return '计算项'
 }
 
-function buildExpressionInfo(
-  nodeId: string,
-  nodes: FlowNode[],
-  edges: { source: string; target: string }[],
-  displaySettings: { numberDecimals: number; percentMode: boolean; percentDecimals: number },
-): { text: string; isRateLike: boolean } {
-  const node = nodes.find(item => item.id === nodeId)
-  if (!node) return { text: '未知项', isRateLike: false }
-
-  if (node.type === 'cellNode') {
-    const label = getNodeLabel(node)
-    const value = formatNarrationValue(
-      node.data.value,
-      node.data.isPercent,
-      displaySettings.numberDecimals,
-      displaySettings.percentMode,
-      displaySettings.percentDecimals,
-    )
-
-    if (node.data.isInput) return { text: `${label}${value}`, isRateLike: node.data.isPercent && displaySettings.percentMode }
-
-    const incoming = edges.filter(edge => edge.target === node.id)
-    if (incoming.length === 0) return { text: `${label}${value}`, isRateLike: node.data.isPercent && displaySettings.percentMode }
-    return buildExpressionInfo(incoming[0].source, nodes, edges, displaySettings)
-  }
-
-  if (node.type === 'operatorNode') {
-    if (node.data.operator === '+' && node.data.sumTerms?.length) {
-      const sumTexts = node.data.sumTerms.map(term => {
-        const termNode = nodes.find(item => item.id === term)
-        if (termNode?.type === 'cellNode') {
-          const label = getNodeLabel(termNode)
-          const value = formatNarrationValue(
-            termNode.data.value,
-            termNode.data.isPercent,
-            displaySettings.numberDecimals,
-            displaySettings.percentMode,
-            displaySettings.percentDecimals,
-          )
-          return `${label}${value}`
-        }
-        return term
-      })
-
-      return { text: `${sumTexts.join('、')}之和`, isRateLike: false }
-    }
-
-    const incoming = edges.filter(edge => edge.target === node.id)
-    const leftEdge = incoming[0]
-    const rightEdge = incoming[1]
-    const leftLiteral = node.data.literalOperands.find(item => item.side === 'left')
-    const rightLiteral = node.data.literalOperands.find(item => item.side === 'right')
-
-    const leftInfo = leftEdge
-      ? buildExpressionInfo(leftEdge.source, nodes, edges, displaySettings)
-      : leftLiteral
-        ? {
-            text: formatNarrationValue(
-              leftLiteral.value,
-              leftLiteral.isPercent,
-              displaySettings.numberDecimals,
-              displaySettings.percentMode,
-              displaySettings.percentDecimals,
-            ),
-            isRateLike: leftLiteral.isPercent,
-          }
-        : { text: '左侧数值', isRateLike: false }
-
-    const rightInfo = rightEdge
-      ? buildExpressionInfo(rightEdge.source, nodes, edges, displaySettings)
-      : rightLiteral
-        ? {
-            text: formatNarrationValue(
-              rightLiteral.value,
-              rightLiteral.isPercent,
-              displaySettings.numberDecimals,
-              displaySettings.percentMode,
-              displaySettings.percentDecimals,
-            ),
-            isRateLike: rightLiteral.isPercent,
-          }
-        : { text: '右侧数值', isRateLike: false }
-
-    if (node.data.operator === '+') {
-      return { text: `${leftInfo.text}加上${rightInfo.text}`, isRateLike: false }
-    }
-    if (node.data.operator === '-') {
-      return { text: `${leftInfo.text}减去${rightInfo.text}`, isRateLike: false }
-    }
-    if (node.data.operator === '*') {
-      if (rightInfo.isRateLike) {
-        return { text: `${leftInfo.text}按${rightInfo.text}计算`, isRateLike: false }
-      }
-      return { text: `${leftInfo.text}乘以${rightInfo.text}`, isRateLike: false }
-    }
-    if (node.data.operator === '/') {
-      if (rightInfo.isRateLike) {
-        return { text: `${leftInfo.text}按${rightInfo.text}折算`, isRateLike: false }
-      }
-      return { text: `${leftInfo.text}除以${rightInfo.text}`, isRateLike: false }
-    }
-
-    return { text: `${leftInfo.text}结合${rightInfo.text}`, isRateLike: false }
-  }
-
-  return { text: '未知项', isRateLike: false }
-}
-
 /** Extract leading function name from a formula string, e.g. "=IF(..." → "IF" */
 function getFormulaFuncName(formula: string | null): string | null {
   if (!formula) return null
@@ -254,43 +146,161 @@ function getFormulaFuncName(formula: string | null): string | null {
   return m ? m[1].toUpperCase() : null
 }
 
-function buildNarrationLine(
+type DS = { numberDecimals: number; percentMode: boolean; percentDecimals: number }
+
+function fmtV(node: FlowNode, ds: DS): string {
+  if (node.type !== 'cellNode') return '—'
+  return formatNarrationValue(
+    node.data.value, node.data.isPercent,
+    ds.numberDecimals, ds.percentMode, ds.percentDecimals,
+  )
+}
+
+function isInputCell(node: FlowNode, edges: FlowEdge[]): boolean {
+  if (node.type !== 'cellNode') return false
+  return node.data.isInput || edges.filter(e => e.target === node.id).length === 0
+}
+
+/**
+ * Build a natural-language phrase describing how a calc cell was derived.
+ * Returns only the core description (no leading connector, no trailing 。).
+ */
+function buildCalcDesc(
   node: FlowNode,
   nodes: FlowNode[],
-  edges: { source: string; target: string }[],
-  displaySettings: { numberDecimals: number; percentMode: boolean; percentDecimals: number },
-) {
-  if (node.type !== 'cellNode') return null
-
+  edges: FlowEdge[],
+  ds: DS,
+): string {
+  if (node.type !== 'cellNode') return ''
   const label = getNodeLabel(node)
-  const value = formatNarrationValue(
-    node.data.value,
-    node.data.isPercent,
-    displaySettings.numberDecimals,
-    displaySettings.percentMode,
-    displaySettings.percentDecimals,
-  )
+  const value = fmtV(node, ds)
 
-  if (node.data.isInput) return `${label}为${value}。`
-
-  const incoming = edges.filter(edge => edge.target === node.id)
-  if (incoming.length === 0) return `${label}为${value}。`
-
-  // Complex formula (IF / VLOOKUP / MAX / etc.) — show function name + dep list
+  // Complex formula (IF / VLOOKUP / etc.)
   if (node.data.isComplex) {
-    const funcName = getFormulaFuncName(node.data.formula as string | null)
-    const depLabels = incoming
-      .map(e => {
-        const src = nodes.find(n => n.id === e.source)
-        return src ? getNodeLabel(src) : e.source
-      })
+    const funcName = getFormulaFuncName((node.data.formula as string | null) ?? null)
+    const incoming = edges.filter(e => e.target === node.id)
+    const deps = incoming
+      .map(e => nodes.find(n => n.id === e.source))
+      .filter((n): n is FlowNode => Boolean(n))
+      .map(n => getNodeLabel(n))
       .join('、')
-    const prefix = funcName ? `经 ${funcName} 函数` : '经公式'
-    return `${prefix}（依据 ${depLabels}），${label}为${value}。`
+    const fn = funcName ? `${funcName}函数` : '公式'
+    return deps
+      ? `经${fn}对${deps}进行计算，${label}为${value}`
+      : `${label}经${fn}得出为${value}`
   }
 
-  const expression = buildExpressionInfo(incoming[0].source, nodes, edges, displaySettings)
-  return `${expression.text}后，${label}为${value}。`
+  const incoming = edges.filter(e => e.target === node.id)
+  if (!incoming.length) return `${label}为${value}`
+
+  const opNode = nodes.find(n => n.id === incoming[0].source)
+  if (!opNode || opNode.type !== 'operatorNode') return `${label}为${value}`
+
+  const op  = opNode.data.operator
+  const opIncoming = edges.filter(e => e.target === opNode.id)
+  const leftLit  = opNode.data.literalOperands.find(l => l.side === 'left')
+  const rightLit = opNode.data.literalOperands.find(l => l.side === 'right')
+
+  // SUM of many named terms
+  if (op === '+' && opNode.data.sumTerms && opNode.data.sumTerms.length >= 2) {
+    const terms = opNode.data.sumTerms
+      .map(tid => nodes.find(n => n.id === tid))
+      .filter((n): n is FlowNode => Boolean(n))
+    const termStr = terms.map(n => getNodeLabel(n)).join('、')
+    return `将${termStr}加总，${label}合计为${value}`
+  }
+
+  // Binary operator — resolve left / right sources
+  const leftSrcId  = opIncoming[0]?.source
+  const rightSrcId = opIncoming[1]?.source
+  const leftNode   = leftSrcId  ? nodes.find(n => n.id === leftSrcId)  : null
+  const rightNode  = rightSrcId ? nodes.find(n => n.id === rightSrcId) : null
+
+  const leftText = leftNode?.type === 'cellNode'
+    ? getNodeLabel(leftNode)
+    : leftLit
+      ? formatNarrationValue(leftLit.value, leftLit.isPercent, ds.numberDecimals, ds.percentMode, ds.percentDecimals)
+      : null
+
+  const rightText = rightNode?.type === 'cellNode'
+    ? getNodeLabel(rightNode)
+    : rightLit
+      ? formatNarrationValue(rightLit.value, rightLit.isPercent, ds.numberDecimals, ds.percentMode, ds.percentDecimals)
+      : null
+
+  const rightIsPercent = Boolean(
+    (rightNode?.type === 'cellNode' ? rightNode.data.isPercent : rightLit?.isPercent) && ds.percentMode,
+  )
+  const leftIsPercent = Boolean(
+    (leftNode?.type === 'cellNode' ? leftNode.data.isPercent : leftLit?.isPercent) && ds.percentMode,
+  )
+
+  if (!leftText && !rightText) return `${label}为${value}`
+
+  switch (op) {
+    case '+':
+      if (leftText && rightText) return `将${leftText}与${rightText}相加，${label}合计为${value}`
+      return `${leftText ?? rightText}计入后，${label}为${value}`
+    case '-':
+      if (leftText && rightText) return `以${leftText}扣除${rightText}，${label}为${value}`
+      return `${label}为${value}`
+    case '*':
+      if (rightIsPercent && leftText && rightText) return `${leftText}按${rightText}计提，${label}为${value}`
+      if (leftIsPercent && rightText && leftText)  return `${rightText}按${leftText}计提，${label}为${value}`
+      if (leftText && rightText) return `${leftText}乘以${rightText}，${label}为${value}`
+      return `${label}为${value}`
+    case '/':
+      if (rightIsPercent && leftText && rightText) return `${leftText}按${rightText}折算，${label}为${value}`
+      if (leftText && rightText) return `${leftText}除以${rightText}，${label}为${value}`
+      return `${label}为${value}`
+    default:
+      return `${label}为${value}`
+  }
+}
+
+/**
+ * Assemble activated cell nodes into one cohesive natural-language paragraph.
+ * Mimics how a person would walk through a calculation chain in a verbal report.
+ */
+function buildNaturalParagraph(
+  cells: FlowNode[],
+  nodes: FlowNode[],
+  edges: FlowEdge[],
+  ds: DS,
+): string {
+  if (!cells.length) return ''
+
+  const inputCells = cells.filter(n => isInputCell(n, edges))
+  const calcCells  = cells.filter(n => !isInputCell(n, edges))
+
+  const sentences: string[] = []
+
+  // ── Opening: state the raw input values ───────────────────────────────────
+  if (inputCells.length === 1) {
+    const n = inputCells[0]
+    sentences.push(`${getNodeLabel(n)}为${fmtV(n, ds)}`)
+  } else if (inputCells.length > 1) {
+    const items = inputCells.map(n => `${getNodeLabel(n)}为${fmtV(n, ds)}`)
+    sentences.push(`其中，${items.join('，')}`)
+  }
+
+  // ── Calculation sentences with natural transitions ─────────────────────────
+  const MID_CONNECTORS = ['在此基础上，', '进而，', '由此，', '此后，']
+  calcCells.forEach((n, i) => {
+    const isOutputNode = Boolean((n.data as { isOutput?: boolean }).isOutput)
+    const desc = buildCalcDesc(n, nodes, edges, ds)
+
+    if (isOutputNode) {
+      sentences.push(`最终，${desc}`)
+    } else if (i === 0 && inputCells.length > 0) {
+      sentences.push(`在此基础上，${desc}`)
+    } else {
+      const connector = MID_CONNECTORS[Math.min(i, MID_CONNECTORS.length - 1)]
+      sentences.push(`${connector}${desc}`)
+    }
+  })
+
+  return sentences.map(s => s + '。').join('')
 }
 
 /**
@@ -331,44 +341,46 @@ function FlowAutoFit() {
 }
 
 function PlaybackNarration() {
-  const { animationStatus, animationStep, animationSteps, nodes, edges, displaySettings, mainPathNodeIds } = useFlowStore()
+  const {
+    animationStatus, animationStep, animationSteps,
+    nodes, edges, displaySettings,
+    mainPathNodeIds, hasMainPath,
+  } = useFlowStore()
 
-  const visibleStepCount = animationStatus === 'done'
-    ? animationSteps.length
-    : animationStatus === 'idle'
-      ? 0
-      : animationStep
+  const visibleStepCount =
+    animationStatus === 'done' ? animationSteps.length :
+    animationStatus === 'idle' ? 0 : animationStep
 
-  const narrationLines = animationSteps
+  // Collect activated cell nodes in step order, main-path only
+  const activatedCells = animationSteps
     .slice(0, visibleStepCount)
     .flatMap(step => step.nodeIds)
-    .map(id => nodes.find(node => node.id === id))
-    .filter((node): node is FlowNode => Boolean(node))
-    .filter(node => mainPathNodeIds.size === 0 || mainPathNodeIds.has(node.id))
-    .map(node => buildNarrationLine(node, nodes, edges, displaySettings))
-    .filter((line): line is string => Boolean(line))
+    .map(id => nodes.find(n => n.id === id))
+    .filter((n): n is FlowNode => Boolean(n) && n.type === 'cellNode')
+    .filter(n => !hasMainPath || mainPathNodeIds.has(n.id))
+
+  const paragraph = buildNaturalParagraph(activatedCells, nodes, edges, displaySettings)
 
   let title = '计算解说'
-  if (animationStatus === 'playing') title = `计算进行中 · 已播放 ${visibleStepCount} 步`
-  else if (animationStatus === 'paused') title = `计算已暂停 · 已播放 ${visibleStepCount} 步`
-  else if (animationStatus === 'done') title = '计算完成'
-
-  const narrationText = narrationLines.join('')
+  let dotColor = 'bg-slate-400'
+  if (animationStatus === 'playing') { title = '计算进行中'; dotColor = 'bg-emerald-400 animate-pulse' }
+  else if (animationStatus === 'paused') { title = '已暂停'; dotColor = 'bg-amber-400' }
+  else if (animationStatus === 'done')   { title = '计算完成'; dotColor = 'bg-sky-400' }
 
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 w-[min(820px,calc(100%-11rem))] rounded-2xl border border-lpf-border bg-lpf-surface/92 backdrop-blur-md shadow-[0_8px_28px_rgba(0,0,0,0.08)] px-5 py-3.5">
       <div className="flex items-center gap-2 mb-2">
-        <span className="inline-flex h-2 w-2 rounded-full bg-slate-400" />
+        <span className={`inline-flex h-2 w-2 rounded-full ${dotColor}`} />
         <p className="text-[11px] uppercase tracking-[0.22em] text-lpf-subtle font-semibold">{title}</p>
       </div>
 
-      {narrationText ? (
-        <p className="text-[14px] leading-7 text-lpf-text whitespace-normal break-words">
-          {narrationText}
+      {paragraph ? (
+        <p className="text-[14px] leading-[1.85] text-lpf-text whitespace-normal break-words">
+          {paragraph}
         </p>
       ) : (
-        <p className="text-[14px] leading-6 text-lpf-text">
-          点击下方播放后，这里会按计算顺序累积显示自然语言描述，不会删除前面的过程说明。
+        <p className="text-[13px] leading-6 text-lpf-muted">
+          点击播放后，这里会用自然语言逐步描述计算主路径的推导过程。
         </p>
       )}
     </div>

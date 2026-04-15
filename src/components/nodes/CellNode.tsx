@@ -31,13 +31,16 @@ function formatValue(
 
 export const CellNode = memo(function CellNode({ id, data }: NodeProps<CellFlowNode>) {
   const { address, value, label, isInput, isOutput, isMarked, isPercent } = data as CellNodeData
-  const activeNodeIds = useFlowStore(s => s.activeNodeIds)
-  const hasMainPath = useFlowStore(s => s.hasMainPath)
-  const mainPathNodeIds = useFlowStore(s => s.mainPathNodeIds)
+  const activeNodeIds    = useFlowStore(s => s.activeNodeIds)
+  const hasMainPath      = useFlowStore(s => s.hasMainPath)
+  const mainPathNodeIds  = useFlowStore(s => s.mainPathNodeIds)
+  const animationStatus  = useFlowStore(s => s.animationStatus)
   const { numberDecimals, percentMode, percentDecimals } = useFlowStore(s => s.displaySettings)
   const isActive = activeNodeIds.has(id)
   const isOnMainPath = !hasMainPath || mainPathNodeIds.has(id)
-  const nodeOpacity = isOnMainPath ? 1 : 0.32
+  const isPlaying = animationStatus !== 'idle'
+  // During playback hide non-main-path nodes completely; at rest dim them
+  const nodeOpacity = isPlaying && hasMainPath && !isOnMainPath ? 0 : isOnMainPath ? 1 : 0.32
 
   // ── Card state variants ────────────────────────────────────────────────────
   const isStart  = isMarked && !isOutput
