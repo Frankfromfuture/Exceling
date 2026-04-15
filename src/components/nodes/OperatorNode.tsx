@@ -4,18 +4,46 @@ import type { OperatorFlowNode, OperatorNodeData } from '../../types'
 import { OPERATOR_COLORS, OPERATOR_LABELS } from '../../types'
 import { useFlowStore } from '../../store/flowStore'
 
-function formatLiteralValue(value: number | string, isPercent: boolean) {
-  if (typeof value === 'string') return value
+/** Render a literal operand value — large number, % as raised superscript */
+function LiteralValue({ value, isPercent, color }: {
+  value: number | string
+  isPercent: boolean
+  color: string
+}) {
+  if (typeof value === 'string') {
+    return (
+      <span style={{ fontSize: 13, fontWeight: 600, color: `${color}dd`, lineHeight: 1 }}>
+        {value}
+      </span>
+    )
+  }
+
   if (isPercent) {
-    return (value * 100).toLocaleString('zh-CN', {
+    const numStr = (value * 100).toLocaleString('zh-CN', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }) + '%'
+    })
+    return (
+      <span className="inline-flex items-start whitespace-nowrap leading-none">
+        <span style={{ fontSize: 14, fontWeight: 700, color: `${color}ee`, lineHeight: 1 }}>
+          {numStr}
+        </span>
+        <span style={{ fontSize: 9, fontWeight: 600, color: `${color}bb`, lineHeight: 1, marginTop: 1, marginLeft: 1 }}>
+          %
+        </span>
+      </span>
+    )
   }
-  return value.toLocaleString('zh-CN', {
+
+  const numStr = value.toLocaleString('zh-CN', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })
+  return (
+    <span style={{ fontSize: 13, fontWeight: 600, color: `${color}dd`, lineHeight: 1 }}>
+      {numStr}
+    </span>
+  )
 }
 
 export const OperatorNode = memo(function OperatorNode({ id, data }: NodeProps<OperatorFlowNode>) {
@@ -44,8 +72,8 @@ export const OperatorNode = memo(function OperatorNode({ id, data }: NodeProps<O
         isActive ? 'scale-110' : showMainGlow ? 'scale-105' : 'hover:scale-105',
       ].join(' ')}
       style={{
-        width: 72,
-        height: hasLiterals ? 56 : 44,
+        width: 76,
+        height: hasLiterals ? 62 : 44,
         borderRadius: 10,
         border: `${showMainGlow ? 2.5 : 2}px solid ${color}`,
         background: isActive
@@ -84,25 +112,15 @@ export const OperatorNode = memo(function OperatorNode({ id, data }: NodeProps<O
 
       {/* Literal constants row */}
       {hasLiterals && (
-        <div className="flex items-center gap-1 mt-1 mb-1">
+        <div className="flex items-center gap-1.5 mt-1.5">
           {leftLiteral && (
-            <span
-              className="leading-none whitespace-nowrap"
-              style={{ fontSize: 10, color: `${color}cc` }}
-            >
-              {formatLiteralValue(leftLiteral.value, leftLiteral.isPercent)}
-            </span>
+            <LiteralValue value={leftLiteral.value} isPercent={leftLiteral.isPercent} color={color} />
           )}
           {leftLiteral && rightLiteral && (
-            <span style={{ fontSize: 9, color: `${color}66` }}>·</span>
+            <span style={{ fontSize: 8, color: `${color}55` }}>·</span>
           )}
           {rightLiteral && (
-            <span
-              className="leading-none whitespace-nowrap"
-              style={{ fontSize: 10, color: `${color}cc` }}
-            >
-              {formatLiteralValue(rightLiteral.value, rightLiteral.isPercent)}
-            </span>
+            <LiteralValue value={rightLiteral.value} isPercent={rightLiteral.isPercent} color={color} />
           )}
         </div>
       )}

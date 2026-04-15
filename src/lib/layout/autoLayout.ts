@@ -3,8 +3,8 @@ import type { FlowNode, FlowEdge } from '../../types'
 
 const CELL_W     = 200
 const CELL_H     = 90
-const OP_W       = 72   // operator node — rounded rect, wider than tall
-const OP_H       = 56
+const OP_W       = 76   // operator node — rounded rect, wider than tall
+const OP_H       = 62
 const CONST_SIZE = 56
 
 interface NodeDims { width: number; height: number }
