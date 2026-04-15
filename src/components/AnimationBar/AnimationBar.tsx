@@ -1,4 +1,4 @@
-import { Play, Pause, RotateCcw, Gauge } from 'lucide-react'
+import { Play, Pause, RotateCcw, Gauge, LayoutGrid } from 'lucide-react'
 import { useFlowStore } from '../../store/flowStore'
 import type { AnimationStatus } from '../../types'
 
@@ -24,7 +24,7 @@ export function AnimationBar() {
   const {
     animationStatus, speed, animationStep, animationSteps,
     playAnimation, pauseAnimation, resetAnimation, setSpeed,
-    fileName, resetFlow,
+    fileName, resetFlow, relayoutFlow, nodes,
   } = useFlowStore()
 
   const progress = animationSteps.length
@@ -107,6 +107,18 @@ export function AnimationBar() {
           ))}
         </div>
       </div>
+
+      <div className="w-px h-7 bg-lpf-border" />
+
+      {/* Re-layout */}
+      <button
+        onClick={relayoutFlow}
+        disabled={nodes.length === 0}
+        className={nodes.length > 0 ? btnOn : btnOff}
+        title="重新整理布局"
+      >
+        <LayoutGrid className="w-3.5 h-3.5" />
+      </button>
 
       <div className="w-px h-7 bg-lpf-border" />
 

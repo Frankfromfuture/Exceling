@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { FlowNode, FlowEdge, AnimationStatus, AnimationStep, DisplaySettings } from '../types'
+import { applyDagreLayout } from '../lib/layout/autoLayout'
 
 interface MainPathResult {
   mainPathNodeIds: Set<string>
@@ -77,6 +78,8 @@ export interface FlowStore {
   setFlowData: (fileName: string, nodes: FlowNode[], edges: FlowEdge[]) => void
   resetFlow: () => void
   setDisplaySettings: (patch: Partial<DisplaySettings>) => void
+
+  relayoutFlow: () => void
 
   playAnimation: () => void
   pauseAnimation: () => void
@@ -221,6 +224,13 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
       activeEdgeIds: new Set(),
       animationStep: 0,
     }),
+
+  relayoutFlow: () => {
+    const { nodes, edges } = get()
+    if (nodes.length === 0) return
+    const laid = applyDagreLayout(nodes, edges)
+    set({ nodes: laid })
+  },
 
   playAnimation: () => {
     const { animationStatus, animationSteps, speed, _tick } = get()

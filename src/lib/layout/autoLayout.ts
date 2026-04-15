@@ -24,10 +24,14 @@ export function applyDagreLayout(nodes: FlowNode[], edges: FlowEdge[]): FlowNode
   g.setDefaultEdgeLabel(() => ({}))
   g.setGraph({
     rankdir: 'LR',
-    nodesep: 52,    // vertical gap between nodes in the same rank
-    ranksep: 96,    // horizontal gap between ranks
-    marginx: 40,
-    marginy: 40,
+    align:    'UL',   // align nodes to upper-left within each rank column
+    acyclicer: 'greedy',
+    ranker:   'network-simplex',
+    nodesep:  64,     // vertical gap between nodes in the same rank
+    edgesep:  16,     // gap between parallel edges in the same rank
+    ranksep:  112,    // horizontal gap between ranks
+    marginx:  64,
+    marginy:  56,
   })
 
   nodes.forEach(node => {
