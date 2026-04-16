@@ -311,12 +311,12 @@ func isPurpleHex(hex string) bool {
 	b, _ := strconv.ParseInt(hex[4:6], 16, 64)
 
 	// Direct channel check
-	if r > g+12 && b > g+12 && r+b > 60 {
+	if r > g+8 && b > g+8 {
 		return true
 	}
-	// HSL hue 200°–360°
+	// HSL hue 240°–350°
 	h, s, l := rgbToHsl(r, g, b)
-	return h >= 200 && h <= 360 && s >= 0.08 && l >= 0.04 && l <= 0.92
+	return h >= 240 && h <= 350 && s >= 0.05 && l >= 0.04 && l <= 0.98
 }
 
 func rgbToHsl(ri, gi, bi int64) (h, s, l float64) {

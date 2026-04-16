@@ -463,13 +463,33 @@ export function buildFlowGraph(cells: ParsedCell[]): {
   const formulaCellIds = new Set(graphFormulaCells.map(c => c.address))
   const markedCells = computeCells.filter(c => c.isMarked)
 
-  const markedStartAddress = markedCells.find(c => !formulaCellIds.has(c.address) && !hasIncoming.has(c.address))?.address
-    ?? markedCells.find(c => !formulaCellIds.has(c.address))?.address
-    ?? markedCells[0]?.address
+  let markedStartAddress: string | undefined
+  let markedEndAddress: string | undefined
 
-  const markedEndAddress = [...markedCells].reverse().find(c => formulaCellIds.has(c.address) && !hasOutgoing.has(c.address))?.address
-    ?? [...markedCells].reverse().find(c => formulaCellIds.has(c.address))?.address
-    ?? markedCells[markedCells.length - 1]?.address
+  if (markedCells.length === 2) {
+    const [c1, c2] = markedCells
+    const c1Score = (formulaCellIds.has(c1.address) ? 2 : 0) + (hasIncoming.has(c1.address) ? 1 : 0)
+    const c2Score = (formulaCellIds.has(c2.address) ? 2 : 0) + (hasIncoming.has(c2.address) ? 1 : 0)
+    
+    if (c1Score < c2Score) {
+      markedStartAddress = c1.address
+      markedEndAddress = c2.address
+    } else if (c2Score < c1Score) {
+      markedStartAddress = c2.address
+      markedEndAddress = c1.address
+    } else {
+      markedStartAddress = c1.address
+      markedEndAddress = c2.address
+    }
+  } else {
+    markedStartAddress = markedCells.find(c => !formulaCellIds.has(c.address) && !hasIncoming.has(c.address))?.address
+      ?? markedCells.find(c => !formulaCellIds.has(c.address))?.address
+      ?? markedCells[0]?.address
+
+    markedEndAddress = [...markedCells].reverse().find(c => formulaCellIds.has(c.address) && !hasOutgoing.has(c.address))?.address
+      ?? [...markedCells].reverse().find(c => formulaCellIds.has(c.address))?.address
+      ?? markedCells[markedCells.length - 1]?.address
+  }
 
   const updatedCellNodes = cellNodes.map(n => {
     if (n.type !== 'cellNode') return n
@@ -482,8 +502,14 @@ export function buildFlowGraph(cells: ParsedCell[]): {
     const isComplex = complexCellIds.has(n.id)
 
     if (markedCells.length > 0) {
-      if (isMarkedStart) isInput = true
-      if (isMarkedEnd) isOutput = true
+      if (isMarkedStart) {
+        isInput = true
+        isOutput = false
+      }
+      if (isMarkedEnd) {
+        isOutput = true
+        isInput = false
+      }
       if (cell?.isMarked && !isMarkedStart && !isMarkedEnd) {
         isInput = !cell.formula || externalFormulaAddresses.has(n.id)
       }

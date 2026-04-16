@@ -64,15 +64,16 @@ function isPurple(hex6: string): boolean {
   const g = parseInt(hex6.slice(2, 4), 16)
   const b = parseInt(hex6.slice(4, 6), 16)
 
+  // Fast path: distinct magenta/purple tint
+  if (r > g + 2 && b > g + 2) return true
+
   const [h, s, l] = rgbToHsl(r, g, b)
 
-  const hasPurpleChannelBalance = r > g + 10 && b > g + 10
-  const channelsCloseEnough = Math.abs(r - b) <= 120
-  const inPurpleHueBand = h >= 265 && h <= 320
-  const isVisible = l >= 0.12 && l <= 0.82
-  const hasEnoughSaturation = s >= 0.18
+  const inPurpleHueBand = h >= 230 && h <= 355
+  const isVisible = l >= 0.02 && l <= 0.99
+  const hasEnoughSaturation = s >= 0.02
 
-  return hasPurpleChannelBalance && channelsCloseEnough && inPurpleHueBand && hasEnoughSaturation && isVisible
+  return inPurpleHueBand && hasEnoughSaturation && isVisible
 }
 
 const INVISIBLE = new Set(['', 'none', 'hair'])
@@ -354,25 +355,43 @@ export function detectPurpleFrame(
 
   for (const [addr, rawCell] of Object.entries(ws)) {
     if (addr.startsWith('!')) continue
-    const cell = rawCell as XLSX.CellObject & { s?: number }
-    if (typeof cell.s !== 'number') continue
+    const cell = rawCell as XLSX.CellObject & { s?: number | any }
+    if (!cell.s) continue
 
-    const fmt    = styles.cellXf[cell.s]
-    const border = fmt ? styles.borders[fmt.borderId] : undefined
-    const fill   = fmt ? styles.fills[fmt.fillId]     : undefined
+    if (typeof cell.s === 'object') {
+      // SheetJS fallback object
+      const sObj = cell.s
+      if (sObj.fgColor?.rgb && isPurple(sObj.fgColor.rgb)) { expand(addr); continue }
+      if (sObj.bgColor?.rgb && isPurple(sObj.bgColor.rgb)) { expand(addr); continue }
 
-    // Check borders
-    if (border) {
-      for (const side of ['top', 'bottom', 'left', 'right'] as const) {
-        const bs = border[side]
-        if (!bs?.style || INVISIBLE.has(bs.style)) continue
-        if (bs.rgb && isPurple(bs.rgb)) { expand(addr); break }
+      // Check borders in object form
+      for (const side of ['top', 'bottom', 'left', 'right']) {
+        const bs = sObj[side] || (sObj.border && sObj.border[side])
+        if (bs && bs.color?.rgb && !INVISIBLE.has(bs.style) && isPurple(bs.color.rgb)) {
+          expand(addr); break
+        }
       }
+      continue
     }
 
-    // Check fill color — always run, not just when border didn't match
-    if (fill?.fgRgb && isPurple(fill.fgRgb)) { expand(addr) }
-    else if (fill?.bgRgb && isPurple(fill.bgRgb)) { expand(addr) }
+    if (typeof cell.s === 'number') {
+      const fmt    = styles.cellXf[cell.s]
+      const border = fmt ? styles.borders[fmt.borderId] : undefined
+      const fill   = fmt ? styles.fills[fmt.fillId]     : undefined
+
+      // Check borders
+      if (border) {
+        for (const side of ['top', 'bottom', 'left', 'right'] as const) {
+          const bs = border[side]
+          if (!bs?.style || INVISIBLE.has(bs.style)) continue
+          if (bs.rgb && isPurple(bs.rgb)) { expand(addr); break }
+        }
+      }
+
+      // Check fill color — always run, not just when border didn't match
+      if (fill?.fgRgb && isPurple(fill.fgRgb)) { expand(addr) }
+      else if (fill?.bgRgb && isPurple(fill.bgRgb)) { expand(addr) }
+    }
   }
 
   if (!found) {
@@ -408,13 +427,22 @@ export function detectMarkedCells(
   const marked = new Set<string>()
   for (const [addr, rawCell] of Object.entries(ws)) {
     if (addr.startsWith('!')) continue
-    const cell = rawCell as XLSX.CellObject & { s?: number }
-    if (typeof cell.s !== 'number') continue
+    const cell = rawCell as XLSX.CellObject & { s?: number | any }
+    if (!cell.s) continue
 
-    const fmt  = styles.cellXf[cell.s]
-    const fill = fmt ? styles.fills[fmt.fillId] : undefined
-    if (fill?.fgRgb && isPurple(fill.fgRgb)) { marked.add(addr); continue }
-    if (fill?.bgRgb && isPurple(fill.bgRgb)) { marked.add(addr) }
+    if (typeof cell.s === 'object') {
+      const sObj = cell.s
+      if (sObj.fgColor?.rgb && isPurple(sObj.fgColor.rgb)) { marked.add(addr); continue }
+      if (sObj.bgColor?.rgb && isPurple(sObj.bgColor.rgb)) { marked.add(addr) }
+      continue
+    }
+
+    if (typeof cell.s === 'number') {
+      const fmt  = styles.cellXf[cell.s]
+      const fill = fmt ? styles.fills[fmt.fillId] : undefined
+      if (fill?.fgRgb && isPurple(fill.fgRgb)) { marked.add(addr); continue }
+      if (fill?.bgRgb && isPurple(fill.bgRgb)) { marked.add(addr) }
+    }
   }
 
   console.debug('[LPF] Marked cells (purple fill):', [...marked])
