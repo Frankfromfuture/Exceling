@@ -1,6 +1,5 @@
 import type {
   BranchNodeData,
-  DisplaySettings,
   FlowEdge,
   FlowNode,
   Operator,
@@ -518,7 +517,6 @@ function annotateGraphCycles(nodes: FlowNode[], edges: FlowEdge[]): { nodes: Flo
 
 export function buildFlowGraph(
   cells: ParsedCell[],
-  _settings?: DisplaySettings,
 ): { nodes: FlowNode[]; edges: FlowEdge[] } {
   idCounter = 0
 
@@ -567,6 +565,7 @@ export function buildFlowGraph(
       address: cell.address,
       value: cell.value,
       formula: cell.formula,
+      machineFormula: cell.formula,
       label: cell.label ?? cell.comment,
       isInput: !cell.formula || externalFormulaAddresses.has(cell.address),
       isOutput: false,

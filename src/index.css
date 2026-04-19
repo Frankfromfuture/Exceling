@@ -1,138 +1,172 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;800&display=swap');
+/* Fonts loaded via index.html <link> — JetBrains Mono + Inter */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ── Global resets ─────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; }
+:root {
+  --ink-0: theme('colors.ink.0');
+  --ink-50: theme('colors.ink.50');
+  --ink-100: theme('colors.ink.100');
+  --ink-200: theme('colors.ink.200');
+  --ink-300: theme('colors.ink.300');
+  --ink-400: theme('colors.ink.400');
+  --ink-500: theme('colors.ink.500');
+  --ink-600: theme('colors.ink.600');
+  --ink-700: theme('colors.ink.700');
+  --ink-800: theme('colors.ink.800');
+  --ink-900: theme('colors.ink.900');
+  --ink-1000: theme('colors.ink.1000');
 
-html, body, #root {
+  --accent-sage: theme('colors.accent.sage');
+  --accent-mauve: theme('colors.accent.mauve');
+  --accent-slate: theme('colors.accent.slate');
+  --accent-sand: theme('colors.accent.sand');
+
+  --status-ok: theme('colors.status.ok');
+  --status-warn: theme('colors.status.warn');
+  --status-err: theme('colors.status.err');
+  --status-info: theme('colors.status.info');
+
+  --focus-ring: var(--ink-1000);
+  --focus-selection: var(--ink-900);
+  --focus-offset: 2px;
+
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", "Geist Mono", "SF Mono", Consolas, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  --duration-instant: 100ms;
+  --duration-default: 200ms;
+  --duration-slow: 300ms;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: #efefef;
-  font-family: 'Noto Sans SC', 'Source Han Sans CN', '思源黑体', 'Source Han Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', sans-serif;
+  background: var(--ink-50);
+  color: var(--ink-700);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  color: #1a1a1a;
 }
 
-/* ── React Flow overrides ──────────────────────── */
 .react-flow__background {
-  background: #efefef !important;
+  background: var(--ink-50) !important;
 }
-.react-flow__node:not(.dragging) {
-  transition: transform 1.0s cubic-bezier(0.4, 0, 0.2, 1) !important;
+
+.react-flow__node {
+  font-family: var(--font-sans);
 }
+
 .react-flow__attribution {
   background: transparent !important;
-  color: #888 !important;
+  color: var(--ink-400) !important;
 }
+
 .react-flow__attribution a {
-  color: #666 !important;
+  color: var(--ink-500) !important;
 }
+
 .react-flow__controls {
-  background: #ffffff !important;
-  border: 1px solid #d8d8d8 !important;
-  border-radius: 10px !important;
+  background: var(--ink-0) !important;
+  border: 1px solid var(--ink-200) !important;
+  border-radius: var(--radius-sm) !important;
   overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08) !important;
 }
+
 .react-flow__controls-button {
-  background: #ffffff !important;
-  border-color: #d8d8d8 !important;
-  color: #666 !important;
-  fill: #666 !important;
+  background: var(--ink-0) !important;
+  border-color: var(--ink-200) !important;
+  color: var(--ink-500) !important;
+  fill: var(--ink-500) !important;
+  transition: background-color var(--duration-default) var(--ease-out),
+    color var(--duration-default) var(--ease-out) !important;
 }
+
 .react-flow__controls-button:hover {
-  background: #f5f5f5 !important;
-  color: #1a1a1a !important;
-  fill: #1a1a1a !important;
+  background: var(--ink-100) !important;
+  color: var(--ink-900) !important;
+  fill: var(--ink-900) !important;
 }
+
 .react-flow__minimap {
-  background: #f5f5f5 !important;
-  border: 1px solid #d8d8d8 !important;
-  border-radius: 10px !important;
+  background: var(--ink-50) !important;
+  border: 1px solid var(--ink-200) !important;
+  border-radius: var(--radius-sm) !important;
 }
+
 .react-flow__minimap-mask {
-  fill: rgba(0,0,0,0.12) !important;
+  fill: rgba(24, 24, 27, 0.06) !important;
 }
+
 .react-flow__handle {
-  width: 10px !important;
-  height: 10px !important;
-  border-radius: 50% !important;
-  border: 2px solid #cfcfcf !important;
-  background: #ffffff !important;
-  transition: all 0.2s ease !important;
-}
-.react-flow__handle:hover,
-.react-flow__handle.connectable:hover {
-  background: #1a1a1a !important;
-  border-color: #1a1a1a !important;
-  box-shadow: 0 0 8px rgba(0,0,0,0.12) !important;
+  width: 8px !important;
+  height: 8px !important;
+  border: 1.5px solid var(--ink-300) !important;
+  background: var(--ink-0) !important;
+  transition: opacity var(--duration-default) var(--ease-out),
+    transform var(--duration-default) var(--ease-out),
+    border-color var(--duration-default) var(--ease-out),
+    background-color var(--duration-default) var(--ease-out) !important;
 }
 
-/* ── Scrollbar ─────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #efefef; }
-::-webkit-scrollbar-thumb { background: #c8c8c8; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #b8b8b8; }
-
-/* ── Custom animations ─────────────────────────── */
-@keyframes flow {
-  from { stroke-dashoffset: 24; }
-  to   { stroke-dashoffset: 0; }
-}
-@keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(255,255,255,0.08), inset 0 0 8px rgba(255,255,255,0.03); }
-  50%       { box-shadow: 0 0 24px rgba(255,255,255,0.22), inset 0 0 16px rgba(255,255,255,0.06); }
-}
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-6px); }
-}
-@keyframes edge-active-glow {
-  0%, 100% { filter: drop-shadow(0 0 3px currentColor); }
-  50%       { filter: drop-shadow(0 0 8px currentColor); }
-}
-@keyframes fluid-blob {
-  0%   { transform: translate(0px, 0px) scale(1) rotate(0deg); }
-  33%  { transform: translate(30vw, -20vh) scale(1.3) rotate(120deg); }
-  66%  { transform: translate(-20vw, 20vh) scale(0.8) rotate(240deg); }
-  100% { transform: translate(0px, 0px) scale(1) rotate(360deg); }
+.react-flow__node:hover .react-flow__handle,
+.react-flow__handle.connectingfrom,
+.react-flow__handle.connectingto {
+  opacity: 1 !important;
+  transform: scale(1.1) !important;
 }
 
-.animate-edge-active {
-  animation: edge-active-glow 1s ease-in-out infinite;
+.react-flow__handle-valid {
+  border-color: var(--focus-selection) !important;
+  background: var(--ink-900) !important;
 }
 
-/* ── Edge draw sequentially ────────────────────── */
-@keyframes drawEdgePath {
-  0%   { stroke-dashoffset: 1; }
-  100% { stroke-dashoffset: 0; }
-}
-.animate-draw-edge {
-  animation: drawEdgePath 0.6s ease-out forwards;
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-/* ── Main path glow — card border pulse ────────── */
-/* Start/End node: light purple */
-@keyframes glow-purple-card {
-  0%, 100% { box-shadow: 0 0 0 1.5px rgba(216,180,254,0.22), 0 0 12px rgba(216,180,254,0.10); }
-  50%       { box-shadow: 0 0 0 2px   rgba(216,180,254,0.44), 0 0 24px rgba(216,180,254,0.18); }
+::-webkit-scrollbar-track {
+  background: var(--ink-50);
 }
-/* Mid-path node: gray */
-@keyframes glow-gray-card {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(163,163,163,0.18), 0 0 10px rgba(163,163,163,0.07); }
-  50%       { box-shadow: 0 0 0 2px rgba(163,163,163,0.36), 0 0 20px rgba(163,163,163,0.14); }
-}
-.main-path-glow-start   { animation: glow-purple-card   2.4s ease-in-out infinite; }
-.main-path-glow-end     { animation: glow-purple-card   2.4s ease-in-out infinite; }
-.main-path-glow-mid     { animation: glow-gray-card  3s   ease-in-out infinite; }
 
-/* ── Operator node: expanding pulse ring ───────── */
-@keyframes op-ring-expand {
-  0%   { transform: scale(1);   opacity: 0.50; }
-  100% { transform: scale(1.75); opacity: 0; }
+::-webkit-scrollbar-thumb {
+  background: var(--ink-300);
+  border-radius: 9999px;
 }
-.op-ring-pulse { animation: op-ring-expand 2.2s ease-out infinite; }
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-400);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

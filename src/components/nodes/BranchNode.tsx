@@ -1,38 +1,38 @@
-import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { memo } from 'react'
+import { accent } from '../../design'
 import type { BranchFlowNode, BranchNodeData } from '../../types'
 
-export const BranchNode = memo(function BranchNode({ data }: NodeProps<BranchFlowNode>) {
+export const BranchNode = memo(function BranchNode({ data, selected }: NodeProps<BranchFlowNode>) {
   const branchData = data as BranchNodeData
 
   return (
-    <div className="min-w-[180px] rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!h-2.5 !w-2.5 !border-amber-300 !bg-white"
+    <div
+      className={[
+        'relative min-w-36 rounded-md bg-ink-0 pl-4 pr-3 pt-3 pb-3 transition-colors duration-default',
+        selected ? 'border-2 border-ink-900' : 'border border-ink-200 hover:border-ink-300',
+      ].join(' ')}
+    >
+      <span
+        className="absolute inset-y-0 left-0 w-[3px] rounded-l-md"
+        style={{ backgroundColor: accent.slate }}
       />
 
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Branch</p>
-        <p className="text-sm font-medium text-neutral-800">{branchData.condition}</p>
-        <div className="grid grid-cols-2 gap-2 text-xs text-neutral-600">
-          <div className="rounded-xl border border-amber-200 bg-white px-2 py-1.5">
-            <p className="font-semibold text-emerald-700">True</p>
-            <p className="mt-1 break-all">{branchData.trueLabel}</p>
-          </div>
-          <div className="rounded-xl border border-amber-200 bg-white px-2 py-1.5">
-            <p className="font-semibold text-rose-700">False</p>
-            <p className="mt-1 break-all">{branchData.falseLabel}</p>
-          </div>
+      <Handle type="target" position={Position.Left} className="!opacity-0" />
+      <Handle type="source" position={Position.Right} className="!opacity-0" />
+
+      <p className="text-xs font-medium uppercase tracking-label text-ink-500">Branch</p>
+      <p className="mt-2 text-sm font-medium text-ink-800">{branchData.condition}</p>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-ink-600">
+        <div className="rounded-sm border border-ink-200 bg-ink-50 px-2 py-2">
+          <p className="font-medium text-ink-800">True</p>
+          <p className="mt-1 break-all">{branchData.trueLabel}</p>
+        </div>
+        <div className="rounded-sm border border-ink-200 bg-ink-50 px-2 py-2">
+          <p className="font-medium text-ink-800">False</p>
+          <p className="mt-1 break-all">{branchData.falseLabel}</p>
         </div>
       </div>
-
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!h-2.5 !w-2.5 !border-amber-300 !bg-white"
-      />
     </div>
   )
 })

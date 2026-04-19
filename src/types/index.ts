@@ -1,26 +1,29 @@
 import type { Edge, Node } from '@xyflow/react'
 
-export type Operator = '+' | '-' | '*' | '/'
+export type Operator = '+' | '-' | '*' | '/' | '%' | 'pow' | 'min' | 'max' | 'round'
 
-export const OPERATOR_COLORS: Record<Operator, string> = {
-  '+': '#8ca291',
-  '-': '#bb8f96',
-  '*': '#8195a6',
-  '/': '#ae9f7e',
+export const OPERATOR_ACCENTS: Record<Operator, 'sage' | 'mauve' | 'slate' | 'sand'> = {
+  '+': 'sage',
+  '-': 'mauve',
+  '*': 'slate',
+  '/': 'sand',
+  '%': 'sand',
+  pow: 'slate',
+  min: 'slate',
+  max: 'slate',
+  round: 'slate',
 }
 
 export const OPERATOR_LABELS: Record<Operator, string> = {
   '+': '+',
-  '-': '−',
-  '*': '×',
-  '/': '÷',
-}
-
-export const OPERATOR_SHADOW: Record<Operator, string> = {
-  '+': '0 0 16px rgba(140,162,145,0.6)',
-  '-': '0 0 16px rgba(187,143,150,0.6)',
-  '*': '0 0 16px rgba(129,149,166,0.6)',
-  '/': '0 0 16px rgba(174,159,126,0.6)',
+  '-': '-',
+  '*': '脳',
+  '/': '梅',
+  '%': '%',
+  pow: 'x^n',
+  min: 'MIN',
+  max: 'MAX',
+  round: '≈',
 }
 
 export interface FrameRegion {
@@ -67,7 +70,15 @@ export interface CellNodeData extends Record<string, unknown> {
   address: string
   value: number | string | null
   formula: string | null
+  machineFormula?: string | null
+  visualRecipe?: {
+    sourceId: string
+    operator: Operator
+    literal?: number | null
+  } | null
   label: string | null
+  computedValue?: number | string | null
+  computedFormula?: string | null
   isInput: boolean
   isOutput: boolean
   isMarked: boolean
@@ -99,7 +110,11 @@ export interface BranchNodeData extends Record<string, unknown> {
 
 export interface ConstantNodeData extends Record<string, unknown> {
   value: number
+  label?: string | null
+  isPercent?: boolean
 }
+
+export type NodeType = 'cellNode' | 'operatorNode' | 'branchNode' | 'constantNode'
 
 export type CellFlowNode = Node<CellNodeData, 'cellNode'>
 export type OperatorFlowNode = Node<OperatorNodeData, 'operatorNode'>
@@ -114,6 +129,7 @@ export type FlowNode =
 
 export interface FlowEdgeData extends Record<string, unknown> {
   operator: Operator
+  operand?: number | null
   isMainPath?: boolean
   isInCycle?: boolean
   cycleId?: string

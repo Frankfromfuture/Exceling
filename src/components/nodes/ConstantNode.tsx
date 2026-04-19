@@ -1,10 +1,10 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { Trash2 } from 'lucide-react'
 import { memo } from 'react'
-import { accent, ink } from '../../design'
-import type { Operator, OperatorFlowNode, OperatorNodeData } from '../../types'
-import { OPERATOR_LABELS } from '../../types'
+import { accent } from '../../design'
+import type { ConstantFlowNode, ConstantNodeData } from '../../types'
 import { useFlowStore } from '../../store/flowStore'
+import { InlineLabel } from '../Editor/InlineLabel'
 
 const SIDES = [
   { id: 'top', position: Position.Top },
@@ -13,11 +13,9 @@ const SIDES = [
   { id: 'left', position: Position.Left },
 ] as const
 
-const OPERATORS: Operator[] = ['+', '-', '*', '/']
-
-export const OperatorNode = memo(function OperatorNode({ id, data, selected }: NodeProps<OperatorFlowNode>) {
-  const operatorData = data as OperatorNodeData
-  const updateOperator = useFlowStore((store) => store.updateOperator)
+export const ConstantNode = memo(function ConstantNode({ id, data, selected }: NodeProps<ConstantFlowNode>) {
+  const constantData = data as ConstantNodeData
+  const updateNodeData = useFlowStore((store) => store.updateNodeData)
   const removeNode = useFlowStore((store) => store.removeNode)
 
   return (
@@ -29,7 +27,7 @@ export const OperatorNode = memo(function OperatorNode({ id, data, selected }: N
     >
       <span
         className="absolute inset-y-0 left-0 w-[3px] rounded-l-md"
-        style={{ backgroundColor: accent.slate }}
+        style={{ backgroundColor: accent.sand }}
       />
 
       {SIDES.map((side) => (
@@ -54,12 +52,14 @@ export const OperatorNode = memo(function OperatorNode({ id, data, selected }: N
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium uppercase tracking-label text-ink-500">Operator</p>
-          <p className="font-mono text-[28px] font-bold leading-display tracking-display text-ink-900">
-            {OPERATOR_LABELS[operatorData.operator]}
-          </p>
+          <p className="text-xs font-medium uppercase tracking-label text-ink-500">Constant</p>
+          <InlineLabel
+            value={constantData.label ?? 'Constant'}
+            placeholder="Constant"
+            className="px-0 py-0"
+            onCommit={(value) => updateNodeData(id, { label: value || 'Constant' })}
+          />
         </div>
-
         <button
           type="button"
           onClick={(event) => {
@@ -67,31 +67,18 @@ export const OperatorNode = memo(function OperatorNode({ id, data, selected }: N
             removeNode(id)
           }}
           className="flex h-7 w-7 items-center justify-center rounded-sm text-ink-400 opacity-0 transition-colors duration-default hover:bg-ink-100 hover:text-ink-700 group-hover:opacity-100"
-          aria-label="Delete operator"
+          aria-label="Delete constant"
         >
           <Trash2 className="h-4 w-4" strokeWidth={1.5} />
         </button>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
-        {OPERATORS.map((operator) => (
-          <button
-            key={operator}
-            type="button"
-            onClick={() => updateOperator(id, operator)}
-            className={[
-              'flex h-8 w-8 items-center justify-center rounded-sm border font-mono text-sm font-medium transition-colors duration-default',
-              operatorData.operator === operator
-                ? 'border-ink-900 bg-ink-900 text-ink-0'
-                : 'border-ink-300 bg-ink-0 text-ink-700 hover:bg-ink-100',
-            ].join(' ')}
-          >
-            <span style={{ color: operatorData.operator === operator ? ink[0] : ink[700] }}>
-              {OPERATOR_LABELS[operator]}
-            </span>
-          </button>
-        ))}
-      </div>
+      <input
+        type="number"
+        value={constantData.value}
+        onChange={(event) => updateNodeData(id, { value: Number(event.target.value) })}
+        className="mt-3 h-8 w-full rounded-sm border border-ink-300 bg-ink-0 px-3 text-right font-mono text-base font-bold tabular-nums text-ink-900 outline-none transition-colors duration-default focus:border-ink-900"
+      />
     </div>
   )
 })

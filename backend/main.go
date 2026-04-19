@@ -45,6 +45,7 @@ type ParseResult struct {
 
 func main() {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/generate", cors(handleGenerate))
 	mux.HandleFunc("/api/parse", cors(handleParse))
 	mux.HandleFunc("/api/health", cors(handleHealth))
 

@@ -7,6 +7,7 @@
     "start": "concurrently -n go,vite -c cyan.bold,green.bold \"go run ./backend\" \"vite\"",
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test": "vitest run",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -19,6 +20,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "xlsx": "^0.18.5",
+    "zundo": "^2.3.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
@@ -37,6 +39,7 @@
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.0",
-    "vite": "^8.0.4"
+    "vite": "^8.0.4",
+    "vitest": "^4.1.4"
   }
 }
